@@ -29,7 +29,7 @@ const categoryLabels = {
 };
 
 export default function ExpenseBreakdownChart({ refreshTrigger }: ExpenseBreakdownChartProps) {
-  const [data, setData] = useState<Array<{category: string, amount: number, percentage: number}>>([]);
+  const [data, setData] = useState<Array<{category: string, amount: number, percentage: number, name: string, fill: string}>>([]);
   const [loading, setLoading] = useState(true);
   const [chartType, setChartType] = useState<'pie' | 'bar'>('pie');
   const [timePeriod, setTimePeriod] = useState<'today' | 'week' | 'month'>('today');

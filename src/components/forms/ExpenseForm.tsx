@@ -27,11 +27,11 @@ export default function ExpenseForm({ onSuccess, onCancel }: ExpenseFormProps) {
     date: new Date(),
   });
 
-  const [errors, setErrors] = useState<Partial<ExpenseFormData>>({});
+  const [errors, setErrors] = useState<{[K in keyof ExpenseFormData]?: string}>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<ExpenseFormData> = {};
+    const newErrors: {[K in keyof ExpenseFormData]?: string} = {};
 
     if (!formData.description.trim()) {
       newErrors.description = 'Description is required';
@@ -190,7 +190,7 @@ export default function ExpenseForm({ onSuccess, onCancel }: ExpenseFormProps) {
               }`}
             />
             {errors.date && (
-              <p className="text-danger text-sm mt-1">{errors.date as string}</p>
+              <p className="text-danger text-sm mt-1">{errors.date}</p>
             )}
           </div>
         </div>
