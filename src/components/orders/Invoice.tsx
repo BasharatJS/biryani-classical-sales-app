@@ -1,6 +1,7 @@
 'use client';
 
 import { Order } from '@/lib/types';
+import PostInvoiceActions from './PostInvoiceActions';
 
 interface InvoiceProps {
   order: Order;
@@ -10,9 +11,9 @@ interface InvoiceProps {
 export default function Invoice({ order, onPrint }: InvoiceProps) {
   // Use default settings instead of fetching from Firebase to avoid permissions issues
   const settings = {
-    businessName: 'BiryaniBoss',
+    businessName: 'ARMANIA BIRYANI HOUSE',
     businessPhone: '+91 XXXXX XXXXX', 
-    businessAddress: 'Your Business Address',
+    businessAddress: 'MAYA BAZAR, DURGAPUR, KOLKATA',
     currency: '₹',
     taxRate: 0
   };
@@ -44,57 +45,6 @@ export default function Invoice({ order, onPrint }: InvoiceProps) {
   const taxAmount = (subtotal * taxRate) / 100;
   const finalTotal = subtotal + taxAmount;
 
-  const handlePrint = () => {
-    // Create a new window for printing to avoid duplication
-    const printWindow = window.open('', '_blank');
-    const invoiceContent = document.querySelector('.print-page')?.innerHTML || '';
-    
-    if (printWindow) {
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Invoice</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 20px;
-              font-size: 12px;
-              line-height: 1.4;
-            }
-            .compact-header { margin-bottom: 15px; padding-bottom: 10px; }
-            .compact-spacing { margin: 8px 0; padding: 8px; }
-            .compact-table { font-size: 11px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
-            th { background-color: #f5f5f5; font-weight: bold; }
-            .text-right { text-align: right; }
-            .text-center { text-align: center; }
-            .font-bold { font-weight: bold; }
-            .bg-gray-100 { background-color: #f5f5f5; }
-            .border { border: 1px solid #ddd; }
-            .rounded { border-radius: 4px; }
-            .grid { display: grid; }
-            .grid-cols-3 { grid-template-columns: repeat(3, 1fr); gap: 10px; }
-            @page { margin: 0.5in; }
-          </style>
-        </head>
-        <body onload="window.print(); window.close();">
-          ${invoiceContent}
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
-    } else {
-      // Fallback to regular print if popup is blocked
-      window.print();
-    }
-    
-    // Redirect after print without alert message
-    setTimeout(() => {
-      if (onPrint) onPrint();
-    }, 1000);
-  };
 
   return (
     <div className="invoice-container max-w-4xl mx-auto bg-white">
@@ -198,7 +148,7 @@ export default function Invoice({ order, onPrint }: InvoiceProps) {
         <div className="compact-spacing mb-4">
           <div className="bg-gray-50 p-3 rounded-lg">
             <h3 className="text-base font-semibold text-gray-800 mb-2">Order Details</h3>
-            <div className="grid grid-cols-3 gap-2 text-center text-sm">
+            <div className="grid grid-cols-4 gap-2 text-center text-sm">
               <div>
                 <p className="text-gray-600">Order Date</p>
                 <p className="font-semibold text-gray-800">{formatDate(order.orderDate)}</p>
@@ -206,6 +156,10 @@ export default function Invoice({ order, onPrint }: InvoiceProps) {
               <div>
                 <p className="text-gray-600">Order Time</p>
                 <p className="font-semibold text-gray-800">{formatTime(order.orderDate)}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Payment Mode</p>
+                <p className="font-semibold text-gray-800">{order.paymentMode || 'Cash'}</p>
               </div>
               <div>
                 <p className="text-gray-600">Order Type</p>
@@ -290,15 +244,8 @@ export default function Invoice({ order, onPrint }: InvoiceProps) {
           <p className="text-gray-600 text-sm">We appreciate your business and hope you enjoy our delicious biryani.</p>
         </div>
 
-        {/* Print Button */}
-        <div className="no-print mt-6 text-center">
-          <button
-            onClick={handlePrint}
-            className="bg-primary text-primary-foreground px-8 py-4 rounded-lg font-bold text-lg hover:bg-primary/90 transition-colors shadow-lg"
-          >
-            🖨️ Print Invoice
-          </button>
-        </div>
+        {/* Post-Invoice Actions */}
+        <PostInvoiceActions order={order} onComplete={() => onPrint && onPrint()} />
       </div>
     </div>
   );

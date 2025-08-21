@@ -8,6 +8,7 @@ export interface Order {
   orderDate: Timestamp;
   notes?: string;
   orderItems: OrderItem[];
+  paymentMode?: 'UPI' | 'Cash';
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

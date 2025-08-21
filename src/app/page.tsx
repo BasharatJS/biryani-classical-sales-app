@@ -63,7 +63,7 @@ export default function Home() {
           <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mr-3">
             <span className="text-2xl">🍛</span>
           </div>
-          <h1 className="text-4xl font-bold text-primary">BiryaniBoss</h1>
+          <h1 className="text-4xl font-bold text-primary">ARMANIA BIRYANI HOUSE</h1>
         </div>
         <p className="text-lg text-secondary">Authentic Biryani Delivered Fresh</p>
       </div>
@@ -89,7 +89,7 @@ export default function Home() {
                 🎉 Order Placed Successfully!
               </h3>
               <p className="text-lg text-gray-600 mb-2 animate-slideUp">
-                Thank you for choosing BiryaniBoss!
+                Thank you for choosing ARMANIA BIRYANI HOUSE!
               </p>
               <p className="text-sm text-gray-500 animate-slideUp delay-100">
                 We will call you soon to confirm your delicious biryani order

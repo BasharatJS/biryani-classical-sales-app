@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { OrderFormData, MenuItem, OrderItem } from '@/lib/types';
 import { OrderService } from '@/lib/firestore';
 import Invoice from '@/components/orders/Invoice';
+import PaymentModeModal from '@/components/modals/PaymentModeModal';
 import { Timestamp } from 'firebase/firestore';
 
 interface OrderFormProps {
@@ -47,9 +48,11 @@ const getCategoryEmoji = (category: string): string => {
 };
 
 export default function OrderForm({ onSuccess, onCancel, title, isCustomerFlow = false }: OrderFormProps) {
-  const [currentStep, setCurrentStep] = useState<'menu' | 'invoice'>('menu');
+  const [currentStep, setCurrentStep] = useState<'menu' | 'payment' | 'invoice'>('menu');
   const [quantities, setQuantities] = useState<{[key: number]: number}>({});
   const [generatedOrder, setGeneratedOrder] = useState<any>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPaymentMode, setSelectedPaymentMode] = useState<'UPI' | 'Cash' | null>(null);
   
   const [formData, setFormData] = useState<OrderFormData>({
     biryaniQuantity: 1,
@@ -112,14 +115,21 @@ export default function OrderForm({ onSuccess, onCancel, title, isCustomerFlow =
     if (!validateForm()) {
       return;
     }
+    
+    setShowPaymentModal(true);
+  };
 
+  const handlePaymentModeSelect = async (paymentMode: 'UPI' | 'Cash') => {
+    setSelectedPaymentMode(paymentMode);
+    setShowPaymentModal(false);
     setIsSubmitting(true);
 
     try {
       const orderData = {
         ...formData,
         orderItems: selectedItems,
-        biryaniQuantity: totalItems
+        biryaniQuantity: totalItems,
+        paymentMode: paymentMode
       };
 
       let createdOrder;
@@ -138,7 +148,8 @@ export default function OrderForm({ onSuccess, onCancel, title, isCustomerFlow =
         orderItems: selectedItems,
         orderDate: Timestamp.now(),
         status: 'pending' as const,
-        notes: formData.notes
+        notes: formData.notes,
+        paymentMode: paymentMode
       };
       
       setGeneratedOrder(orderForInvoice);
@@ -161,6 +172,7 @@ export default function OrderForm({ onSuccess, onCancel, title, isCustomerFlow =
     setQuantities({});
     setCurrentStep('menu');
     setGeneratedOrder(null);
+    setSelectedPaymentMode(null);
     
     if (onSuccess) {
       onSuccess();
@@ -264,12 +276,20 @@ export default function OrderForm({ onSuccess, onCancel, title, isCustomerFlow =
                 disabled={isSubmitting}
                 className="w-full bg-primary text-primary-foreground py-4 px-6 rounded-lg font-bold text-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {isSubmitting ? 'Processing Order...' : 'Place Order & Generate Invoice'}
+                {isSubmitting ? 'Processing Order...' : 'Select Payment Mode'}
               </button>
             )}
           </div>
         ) : null}
       </div>
+
+      {/* Payment Mode Modal */}
+      <PaymentModeModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onSelect={handlePaymentModeSelect}
+        totalAmount={totalAmount}
+      />
     </div>
   );
 }
