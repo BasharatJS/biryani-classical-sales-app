@@ -106,16 +106,16 @@ export default function OrderTabs({ refreshTrigger }: OrderTabsProps) {
       )}
 
       {/* Status and Actions */}
-      <div className="flex items-center justify-between">
-        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
+      <div className="flex items-center justify-end">
+        {/* <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
           {order.status.toUpperCase()}
-        </span>
+        </span> */}
         
         <div className="flex space-x-2">
           {order.status === 'pending' && (
             <button
               onClick={() => updateOrderStatus(order.id!, 'completed')}
-              className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors"
+              className="bg-green-500 text-white px-6 py-2 cursor-pointer rounded-lg font-bold text-lg hover:bg-green-600 transition-colors shadow-lg"
             >
               Complete
             </button>
