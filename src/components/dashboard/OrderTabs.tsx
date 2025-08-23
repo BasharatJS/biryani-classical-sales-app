@@ -25,12 +25,10 @@ export default function OrderTabs({ refreshTrigger }: OrderTabsProps) {
       
       // Separate online and offline orders
       const online = orders.filter(order => 
-        (order as any).orderType === 'online' || 
-        (order as any).customerName // Customer orders are online
+        (order as any).orderType === 'online' && (order as any).status === 'pending'
       );
       const offline = orders.filter(order => 
-        (order as any).orderType === 'offline' || 
-        (!(order as any).customerName && !(order as any).orderType) // Staff orders without customer info are offline
+        (order as any).orderType === 'offline' && (order as any).status === 'pending'
       );
       
       setOnlineOrders(online);
@@ -116,28 +114,28 @@ export default function OrderTabs({ refreshTrigger }: OrderTabsProps) {
         <div className="flex space-x-2">
           {order.status === 'pending' && (
             <button
-              onClick={() => updateOrderStatus(order.id!, 'preparing')}
+              onClick={() => updateOrderStatus(order.id!, 'completed')}
               className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors"
             >
-              Start Preparing
+              Complete
             </button>
           )}
-          {order.status === 'preparing' && (
+          {/* {order.status === 'preparing' && (
             <button
               onClick={() => updateOrderStatus(order.id!, 'ready')}
               className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition-colors"
             >
               Mark Ready
             </button>
-          )}
-          {order.status === 'ready' && (
+          )} */}
+          {/* {order.status === 'ready' && (
             <button
               onClick={() => updateOrderStatus(order.id!, 'completed')}
               className="px-3 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 transition-colors"
             >
               Complete
             </button>
-          )}
+          )} */}
         </div>
       </div>
 

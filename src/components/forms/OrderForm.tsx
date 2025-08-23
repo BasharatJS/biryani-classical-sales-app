@@ -178,15 +178,11 @@ export default function OrderForm({ onSuccess, onCancel, title, isCustomerFlow =
           orderType: 'online'
         }),
         // Add customer details for staff online orders
-        ...(isStaffFlow && orderType === 'online' && {
+        ...(isStaffFlow && {
           customerName: customerDetails.customerName,
           customerPhone: customerDetails.customerPhone,
           orderType: orderType
         }),
-        // Add order type for staff offline orders
-        ...(isStaffFlow && orderType !== 'online' && {
-          orderType: 'offline'
-        })
       };
 
       let createdOrder;
@@ -315,7 +311,7 @@ We will prepare your delicious biryani and contact you shortly. Thank you for ch
               <path d="M9 16.17L5.53 12.7a.996.996 0 10-1.41 1.41L9 18.99l10.88-10.88a.996.996 0 10-1.41-1.41L9 16.17z"/>
             </svg>
           </div>
-          <h2 className="text-2xl font-bold mb-1">Order Completed!</h2>
+          <h2 className="text-2xl font-bold mb-1">Order Placed!</h2>
           <p className="text-green-100">Order #{generatedOrder.id?.slice(-6)} has been placed successfully</p>
         </div>
 
@@ -346,7 +342,7 @@ We will prepare your delicious biryani and contact you shortly. Thank you for ch
 
           {/* Action Buttons */}
           <div className="space-y-4">
-            {orderType === 'online' && customerDetails.customerPhone && (
+            {customerDetails.customerPhone && !isCustomerFlow && (
               <button
                 onClick={handleWhatsAppShare}
                 className="w-full bg-green-600 text-white py-3 px-6 rounded-lg font-bold hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
@@ -444,7 +440,7 @@ We will prepare your delicious biryani and contact you shortly. Thank you for ch
             </div>
 
             {/* Customer Details Section - For customer flow and staff online orders */}
-            {((isCustomerFlow && selectedItems.length > 0) || (isStaffFlow && orderType === 'online' && selectedItems.length > 0)) && (
+            {((isCustomerFlow && selectedItems.length > 0) || (isStaffFlow && selectedItems.length > 0)) && (
               <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-6">
                 <h3 className="font-bold text-primary mb-3">
                   {isCustomerFlow ? '👤 Your Details' : '👤 Customer Details'}

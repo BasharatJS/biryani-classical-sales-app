@@ -83,10 +83,10 @@ export default function Home() {
 
   const handleOrderSuccess = () => {
     setShowOrderForm(false);
-    setOrderSuccess(true);
-    setTimeout(() => {
-      setOrderSuccess(false);
-    }, 3000);
+    // setOrderSuccess(true);
+    // setTimeout(() => {
+    //   setOrderSuccess(false);
+    // }, 3000);
   };
 
   return (
