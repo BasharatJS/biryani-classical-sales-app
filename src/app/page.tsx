@@ -9,12 +9,16 @@ import Modal from '@/components/ui/Modal';
 export default function Home() {
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [isLoginMode, setIsLoginMode] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [role, setRole] = useState<'manager' | 'staff'>('staff');
+  const [detectedRole, setDetectedRole] = useState<string>('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [loginSuccess, setLoginSuccess] = useState(false);
-  const { login, user } = useAuth();
+  const { login, register, user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -22,7 +26,11 @@ export default function Home() {
       setLoginSuccess(true);
       // Small delay to show the loading state before redirect
       setTimeout(() => {
-        router.push('/dashboard');
+        if (user.role === 'manager') {
+          router.push('/dashboard');
+        } else if (user.role === 'staff') {
+          router.push('/staff-dashboard');
+        }
       }, 1000);
     }
   }, [user, router]);
@@ -40,6 +48,32 @@ export default function Home() {
 
     try {
       await login(email, password);
+      // Don't redirect here, let useEffect handle it with loading state
+    } catch (error: any) {
+      setError(error.message);
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (!email || !password || !name) {
+      setError('Please fill in all fields');
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await register(email, password, name, role);
       // Don't redirect here, let useEffect handle it with loading state
     } catch (error: any) {
       setError(error.message);
@@ -152,20 +186,62 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right Section - Sales Manager Login */}
+          {/* Right Section - Staff/Manager Login/Register */}
           <div className="bg-card rounded-2xl p-6 lg:p-8 shadow-xl border border-border hover:shadow-2xl transition-shadow duration-300">
             <div className="h-full flex flex-col justify-center">
-              <div className="text-center mb-8">
+              <div className="text-center mb-6">
                 <div className="mx-auto w-16 h-16 bg-primary rounded-full flex items-center justify-center mb-4">
                   <svg className="w-8 h-8 text-primary-foreground" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                   </svg>
                 </div>
-                <h2 className="text-xl lg:text-2xl font-bold text-foreground">Biryani Sales Manager</h2>
-                <p className="text-secondary mt-2 text-sm lg:text-base">Access your dashboard</p>
+                <h2 className="text-xl lg:text-2xl font-bold text-foreground">
+                  {isLoginMode ? 'Staff/Manager Login' : 'Create Account'}
+                </h2>
+                <p className="text-secondary mt-2 text-sm lg:text-base">
+                  {isLoginMode ? 'Access your dashboard' : 'Register as staff or manager'}
+                </p>
               </div>
 
-              <form onSubmit={handleLogin} className="space-y-4">
+              <form onSubmit={isLoginMode ? handleLogin : handleRegister} className="space-y-4">
+                {!isLoginMode && (
+                  <>
+                    <div>
+                      <label htmlFor="name" className="block text-sm font-medium text-foreground mb-1">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        id="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        placeholder="Enter your full name"
+                        disabled={loading || loginSuccess}
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="role" className="block text-sm font-medium text-foreground mb-1">
+                        User Type
+                      </label>
+                      <select
+                        id="role"
+                        value={role}
+                        onChange={(e) => setRole(e.target.value as 'manager' | 'staff')}
+                        className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        disabled={loading || loginSuccess}
+                      >
+                        <option value="staff">Staff Member</option>
+                        <option value="manager">Manager</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Final role will be based on your database record
+                      </p>
+                    </div>
+                  </>
+                )}
+
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1">
                     Email Address
@@ -191,7 +267,7 @@ export default function Home() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="Enter your password"
+                    placeholder={isLoginMode ? "Enter your password" : "Minimum 6 characters"}
                     disabled={loading || loginSuccess}
                   />
                 </div>
@@ -207,8 +283,28 @@ export default function Home() {
                   disabled={loading || loginSuccess}
                   className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-lg font-medium hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {loginSuccess ? 'Redirecting...' : loading ? 'Signing In...' : 'Sign In'}
+                  {loginSuccess ? 'Redirecting...' : loading ? 
+                    (isLoginMode ? 'Signing In...' : 'Creating Account...') : 
+                    (isLoginMode ? 'Sign In' : 'Create Account')
+                  }
                 </button>
+
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsLoginMode(!isLoginMode);
+                      setError('');
+                      setEmail('');
+                      setPassword('');
+                      setName('');
+                    }}
+                    disabled={loading || loginSuccess}
+                    className="text-primary hover:text-orange-600 text-sm font-medium transition-colors"
+                  >
+                    {isLoginMode ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+                  </button>
+                </div>
               </form>
             </div>
           </div>

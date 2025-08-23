@@ -8,7 +8,7 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children }: AppLayoutProps) {
   return (
-    <ProtectedRoute>
+    <ProtectedRoute requiredRole="manager">
       <div className="h-screen flex bg-background">
         <Sidebar />
         

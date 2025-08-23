@@ -12,6 +12,8 @@ interface OrderFormProps {
   onCancel?: () => void;
   title?: string;
   isCustomerFlow?: boolean;
+  isStaffFlow?: boolean;
+  orderType?: 'online' | 'offline';
 }
 
 const menuItems: MenuItem[] = [
@@ -47,8 +49,8 @@ const getCategoryEmoji = (category: string): string => {
   }
 };
 
-export default function OrderForm({ onSuccess, onCancel, title, isCustomerFlow = false }: OrderFormProps) {
-  const [currentStep, setCurrentStep] = useState<'menu' | 'payment' | 'invoice'>('menu');
+export default function OrderForm({ onSuccess, onCancel, title, isCustomerFlow = false, isStaffFlow = false, orderType }: OrderFormProps) {
+  const [currentStep, setCurrentStep] = useState<'menu' | 'payment' | 'invoice' | 'post-order'>('menu');
   const [quantities, setQuantities] = useState<{[key: number]: number}>({});
   const [generatedOrder, setGeneratedOrder] = useState<any>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -58,6 +60,12 @@ export default function OrderForm({ onSuccess, onCancel, title, isCustomerFlow =
     biryaniQuantity: 1,
     orderItems: [],
     notes: '',
+  });
+
+  // Customer details for staff flow
+  const [customerDetails, setCustomerDetails] = useState({
+    customerName: '',
+    customerPhone: ''
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
@@ -92,6 +100,39 @@ export default function OrderForm({ onSuccess, onCancel, title, isCustomerFlow =
       alert('Please select at least one item to proceed.');
       return false;
     }
+    
+    // Validation for customer flow (home page orders)
+    if (isCustomerFlow) {
+      if (!customerDetails.customerName.trim()) {
+        alert('Please enter your name.');
+        return false;
+      }
+      if (!customerDetails.customerPhone.trim()) {
+        alert('Please enter your phone number.');
+        return false;
+      }
+      if (!/^[0-9]{10}$/.test(customerDetails.customerPhone.replace(/\D/g, ''))) {
+        alert('Please enter a valid 10-digit phone number.');
+        return false;
+      }
+    }
+    
+    // Validation for staff flow online orders
+    if (isStaffFlow && orderType === 'online') {
+      if (!customerDetails.customerName.trim()) {
+        alert('Please enter customer name.');
+        return false;
+      }
+      if (!customerDetails.customerPhone.trim()) {
+        alert('Please enter customer phone number.');
+        return false;
+      }
+      if (!/^[0-9]{10}$/.test(customerDetails.customerPhone.replace(/\D/g, ''))) {
+        alert('Please enter a valid 10-digit phone number.');
+        return false;
+      }
+    }
+    
     return true;
   };
 
@@ -129,17 +170,35 @@ export default function OrderForm({ onSuccess, onCancel, title, isCustomerFlow =
         ...formData,
         orderItems: selectedItems,
         biryaniQuantity: totalItems,
-        paymentMode: paymentMode
+        paymentMode: paymentMode,
+        // Add customer details for customer flow
+        ...(isCustomerFlow && {
+          customerName: customerDetails.customerName,
+          customerPhone: customerDetails.customerPhone,
+          orderType: 'online'
+        }),
+        // Add customer details for staff online orders
+        ...(isStaffFlow && orderType === 'online' && {
+          customerName: customerDetails.customerName,
+          customerPhone: customerDetails.customerPhone,
+          orderType: orderType
+        }),
+        // Add order type for staff offline orders
+        ...(isStaffFlow && orderType !== 'online' && {
+          orderType: 'offline'
+        })
       };
 
       let createdOrder;
       if (isCustomerFlow) {
         createdOrder = await OrderService.createCustomerOrder(orderData);
+      } else if (isStaffFlow) {
+        createdOrder = await OrderService.createStaffOrder(orderData);
       } else {
         createdOrder = await OrderService.createOrder(orderData);
       }
       
-      // Generate order object for invoice
+      // Generate order object
       const orderForInvoice = {
         ...createdOrder,
         id: createdOrder.id || Date.now().toString(),
@@ -149,11 +208,23 @@ export default function OrderForm({ onSuccess, onCancel, title, isCustomerFlow =
         orderDate: Timestamp.now(),
         status: 'pending' as const,
         notes: formData.notes,
-        paymentMode: paymentMode
+        paymentMode: paymentMode,
+        customerName: customerDetails.customerName,
+        customerPhone: customerDetails.customerPhone
       };
       
       setGeneratedOrder(orderForInvoice);
-      setCurrentStep('invoice');
+      
+      // For customer flow, send WhatsApp and show success
+      if (isCustomerFlow) {
+        // Send WhatsApp to biryani owner
+        sendWhatsAppToOwner(orderForInvoice);
+        setCurrentStep('post-order');
+      } else if (isStaffFlow) {
+        setCurrentStep('post-order');
+      } else {
+        setCurrentStep('invoice');
+      }
       
     } catch (error: any) {
       console.error('Error creating order:', error);
@@ -163,6 +234,30 @@ export default function OrderForm({ onSuccess, onCancel, title, isCustomerFlow =
     }
   };
 
+  const sendWhatsAppToOwner = (order: any) => {
+    const ownerPhone = '7022340149'; // Biryani owner's WhatsApp number
+    const customerName = order.customerName || 'Customer';
+    
+    const message = `🍛 NEW ORDER RECEIVED!
+
+Customer: ${customerName}
+Phone: ${order.customerPhone}
+Order ID: #${order.id?.slice(-6)}
+
+Items:
+${order.orderItems.map((item: any) => `• ${item.quantity}x ${item.name} - ₹${item.total}`).join('\n')}
+
+Total Amount: ₹${order.totalAmount}
+Payment: ${order.paymentMode}
+
+Please prepare this delicious biryani order!
+
+- ARMANIA BIRYANI HOUSE`;
+
+    const whatsappLink = `https://wa.me/${ownerPhone}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappLink, '_blank');
+  };
+
   const handleCompleteOrder = () => {
     setFormData({
       biryaniQuantity: 1,
@@ -170,6 +265,7 @@ export default function OrderForm({ onSuccess, onCancel, title, isCustomerFlow =
       notes: '',
     });
     setQuantities({});
+    setCustomerDetails({ customerName: '', customerPhone: '' });
     setCurrentStep('menu');
     setGeneratedOrder(null);
     setSelectedPaymentMode(null);
@@ -179,10 +275,110 @@ export default function OrderForm({ onSuccess, onCancel, title, isCustomerFlow =
     }
   };
 
+  const handleWhatsAppShare = () => {
+    if (generatedOrder && customerDetails.customerPhone) {
+      const message = `Hello! Your order from ARMANIA BIRYANI HOUSE is confirmed.
+      
+Order Details:
+${generatedOrder.orderItems.map((item: any) => `• ${item.quantity}x ${item.name} - ₹${item.total}`).join('\n')}
+
+Total Amount: ₹${generatedOrder.totalAmount}
+Order ID: #${generatedOrder.id?.slice(-6)}
+
+We will prepare your delicious biryani and contact you shortly. Thank you for choosing us!`;
+
+      const phone = customerDetails.customerPhone.replace(/\D/g, '');
+      const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+    }
+  };
+
+  const handlePrintInvoice = () => {
+    window.print();
+  };
+
   if (currentStep === 'invoice' && generatedOrder) {
     return (
       <div className="max-w-4xl mx-auto">
         <Invoice order={generatedOrder} onPrint={handleCompleteOrder} />
+      </div>
+    );
+  }
+
+  if (currentStep === 'post-order' && generatedOrder) {
+    return (
+      <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden max-w-2xl mx-auto">
+        {/* Success Header */}
+        <div className="bg-gradient-to-r from-green-500 to-blue-500 text-white p-6 text-center">
+          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M9 16.17L5.53 12.7a.996.996 0 10-1.41 1.41L9 18.99l10.88-10.88a.996.996 0 10-1.41-1.41L9 16.17z"/>
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold mb-1">Order Completed!</h2>
+          <p className="text-green-100">Order #{generatedOrder.id?.slice(-6)} has been placed successfully</p>
+        </div>
+
+        <div className="p-6">
+          {/* Order Summary */}
+          <div className="bg-background rounded-lg p-4 mb-6">
+            <div className="flex justify-between items-center mb-2">
+              <span className="font-medium">Order ID:</span>
+              <span className="font-bold">#{generatedOrder.id?.slice(-6)}</span>
+            </div>
+            {customerDetails.customerName && (
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-medium">Customer:</span>
+                <span>{customerDetails.customerName}</span>
+              </div>
+            )}
+            {customerDetails.customerPhone && (
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-medium">Phone:</span>
+                <span>{customerDetails.customerPhone}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center">
+              <span className="font-medium">Total Amount:</span>
+              <span className="font-bold text-primary">₹{generatedOrder.totalAmount}</span>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="space-y-4">
+            {orderType === 'online' && customerDetails.customerPhone && (
+              <button
+                onClick={handleWhatsAppShare}
+                className="w-full bg-green-600 text-white py-3 px-6 rounded-lg font-bold hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.382"/>
+                </svg>
+                <span>Share via WhatsApp</span>
+              </button>
+            )}
+            
+            {/* Print Invoice button - Only for staff orders, not for customer orders */}
+            {!isCustomerFlow && (
+              <button
+                onClick={handlePrintInvoice}
+                className="w-full bg-primary text-primary-foreground py-3 px-6 rounded-lg font-bold hover:bg-orange-600 transition-colors flex items-center justify-center space-x-2"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/>
+                </svg>
+                <span>Print Invoice</span>
+              </button>
+            )}
+
+            <button
+              onClick={handleCompleteOrder}
+              className="w-full bg-secondary text-secondary-foreground py-3 px-6 rounded-lg font-bold hover:bg-yellow-600 transition-colors"
+            >
+              {isCustomerFlow ? 'Book Another Order' : 'Take Another Order'}
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -246,6 +442,47 @@ export default function OrderForm({ onSuccess, onCancel, title, isCustomerFlow =
                 );
               })}
             </div>
+
+            {/* Customer Details Section - For customer flow and staff online orders */}
+            {((isCustomerFlow && selectedItems.length > 0) || (isStaffFlow && orderType === 'online' && selectedItems.length > 0)) && (
+              <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-6">
+                <h3 className="font-bold text-primary mb-3">
+                  {isCustomerFlow ? '👤 Your Details' : '👤 Customer Details'}
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      {isCustomerFlow ? 'Your Name *' : 'Customer Name *'}
+                    </label>
+                    <input
+                      type="text"
+                      value={customerDetails.customerName}
+                      onChange={(e) => setCustomerDetails(prev => ({ ...prev, customerName: e.target.value }))}
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder={isCustomerFlow ? "Enter your name" : "Enter customer name"}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      {isCustomerFlow ? 'Your Phone Number *' : 'Phone Number *'}
+                    </label>
+                    <input
+                      type="tel"
+                      value={customerDetails.customerPhone}
+                      onChange={(e) => setCustomerDetails(prev => ({ ...prev, customerPhone: e.target.value }))}
+                      className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="Enter 10-digit phone number"
+                      maxLength={10}
+                    />
+                  </div>
+                </div>
+                {isCustomerFlow && (
+                  <p className="text-xs text-gray-600 mt-2">
+                    📱 We'll send order confirmation via WhatsApp to our kitchen
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Selected Items Summary */}
             {selectedItems.length > 0 && (

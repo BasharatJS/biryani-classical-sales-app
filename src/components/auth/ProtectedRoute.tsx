@@ -6,17 +6,28 @@ import { useRouter } from 'next/navigation';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  requiredRole?: 'manager' | 'staff';
 }
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/');
+      return;
     }
-  }, [user, loading, router]);
+    
+    if (!loading && user && requiredRole && user.role !== requiredRole) {
+      // Redirect to appropriate dashboard based on user role
+      if (user.role === 'manager') {
+        router.push('/dashboard');
+      } else if (user.role === 'staff') {
+        router.push('/staff-dashboard');
+      }
+    }
+  }, [user, loading, router, requiredRole]);
 
   if (loading) {
     return (

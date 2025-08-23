@@ -23,6 +23,7 @@ export const collections = {
 } as const;
 
 export class OrderService {
+  // Create new order for manager dashboard
   static async createOrder(orderData: OrderFormData): Promise<string> {
     const totalAmount = orderData.orderItems.reduce((sum, item) => sum + item.total, 0);
     
@@ -41,10 +42,11 @@ export class OrderService {
     return docRef.id;
   }
 
-  static async createCustomerOrder(orderData: OrderFormData): Promise<any> {
-    const totalAmount = orderData.orderItems.reduce((sum, item) => sum + item.total, 0);
+  // Create order from customer portal (public orders)
+  static async createCustomerOrder(orderData: any): Promise<any> {
+    const totalAmount = orderData.orderItems.reduce((sum: number, item: any) => sum + item.total, 0);
     
-    const order: Omit<Order, 'id'> = {
+    const order: any = {
       biryaniQuantity: orderData.biryaniQuantity,
       totalAmount,
       orderItems: orderData.orderItems,
@@ -53,6 +55,37 @@ export class OrderService {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
       notes: orderData.notes,
+      paymentMode: orderData.paymentMode,
+      orderType: 'online', // Mark as online order
+      ...(orderData.customerName && { customerName: orderData.customerName }),
+      ...(orderData.customerPhone && { customerPhone: orderData.customerPhone }),
+    };
+
+    const docRef = await addDoc(collection(db, collections.orders), order);
+    
+    return {
+      id: docRef.id,
+      ...order
+    };
+  }
+
+  // Create order from staff dashboard with customer details
+  static async createStaffOrder(orderData: any): Promise<any> {
+    const totalAmount = orderData.orderItems.reduce((sum: number, item: any) => sum + item.total, 0);
+    
+    const order: any = {
+      biryaniQuantity: orderData.biryaniQuantity,
+      totalAmount,
+      orderItems: orderData.orderItems,
+      status: 'pending',
+      orderDate: Timestamp.now(),
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+      notes: orderData.notes,
+      paymentMode: orderData.paymentMode,
+      ...(orderData.customerName && { customerName: orderData.customerName }),
+      ...(orderData.customerPhone && { customerPhone: orderData.customerPhone }),
+      ...(orderData.orderType && { orderType: orderData.orderType }),
     };
 
     const docRef = await addDoc(collection(db, collections.orders), order);
@@ -107,6 +140,7 @@ export class OrderService {
 }
 
 export class ExpenseService {
+  // Add new business expense
   static async createExpense(expenseData: ExpenseFormData): Promise<string> {
     const expense: Omit<Expense, 'id'> = {
       ...expenseData,
@@ -119,6 +153,7 @@ export class ExpenseService {
     return docRef.id;
   }
 
+  // Get today's expenses only
   static async getTodayExpenses(): Promise<Expense[]> {
     const today = new Date();
     const startOfToday = Timestamp.fromDate(new Date(today.setHours(0, 0, 0, 0)));
@@ -159,6 +194,7 @@ export class ExpenseService {
 }
 
 export class SettingsService {
+  // Get business settings configuration
   static async getSettings(): Promise<Settings | null> {
     const snapshot = await getDocs(collection(db, collections.settings));
     if (snapshot.empty) return null;
@@ -202,7 +238,33 @@ export class SettingsService {
   }
 }
 
+export class UserService {
+  // Check if email exists in pre-authorized users database
+  static async checkEmailExists(email: string): Promise<{ exists: boolean; userData?: any }> {
+    const q = query(
+      collection(db, 'users'),
+      where('email', '==', email)
+    );
+
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) {
+      return { exists: false };
+    }
+
+    const userDoc = snapshot.docs[0];
+    return { 
+      exists: true, 
+      userData: { 
+        id: userDoc.id, 
+        ...userDoc.data() 
+      } 
+    };
+  }
+}
+
 export class DashboardService {
+  // Get pre-calculated daily profit/loss summary
   static async getDailySummary(date: Date): Promise<DailySummary | null> {
     const dateStr = date.toISOString().split('T')[0];
     const q = query(
